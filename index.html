@@ -1,0 +1,143 @@
+<html>
+<head>
+  <title>QR付きマトリックスシミュレーション</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    table { border-collapse: collapse; margin-bottom: 20px; }
+    td, th {
+      border: 1px solid #999;
+      padding: 10px;
+      text-align: center;
+      width: 70px;
+      height: 40px;
+    }
+    .selected { background-color: yellow; font-weight: bold; }
+    #calcSection { display: none; }
+    #qrcode { margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<h3>① マトリックス（5行×4列 = 20マス）</h3>
+<table id="matrix">
+  <thead>
+    <tr>
+      <th></th>
+      <th>B+</th>
+      <th>B-</th>
+      <th>F+</th>
+      <th>F-</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<h3>② 番号を入力してください（1〜20）</h3>
+<input type="number" id="matrixInput" min="1" max="20">
+<button onclick="selectMatrix()">マトリックス選択</button>
+
+<div id="calcSection">
+  <h3>④ 計算書</h3>
+  <p>(Bond - Stock) / T = O</p>
+  <label>Bond: <input type="number" id="bondInput"></label><br>
+  <label>Stock: <input type="number" id="stockInput"></label><br>
+  <label>T: <input type="number" id="tInput"></label><br><br>
+  <button onclick="startSimulation()">シミュレーション開始</button>
+  <button onclick="stopSimulation()">停止</button>
+  <h4>出力 O = <span id="output">--</span></h4>
+
+  <div id="qrcode"></div>
+  <button onclick="readQRCode()">QRコード読み取り</button>
+  <h4>QR読み取り出力：<span id="qrOutput">--</span></h4>
+</div>
+
+<script>
+  const verticalLabels = ['S', 'D', 'B', 'H+', 'H-'];
+  const horizontalLabels = ['B+', 'B-', 'F+', 'F-'];
+  const tbody = document.querySelector('#matrix tbody');
+  const outputSpan = document.getElementById('output');
+  const qrOutput = document.getElementById('qrOutput');
+  let finalO = null;
+  let simInterval;
+
+  // マトリックス生成
+  let cellMap = {}, cellNumber = 1;
+  verticalLabels.forEach((vLabel) => {
+    const row = document.createElement('tr');
+    const rowHeader = document.createElement('th');
+    rowHeader.textContent = vLabel;
+    row.appendChild(rowHeader);
+
+    horizontalLabels.forEach((hLabel) => {
+      const cell = document.createElement('td');
+      cell.textContent = `${vLabel}${hLabel}`;
+      cell.setAttribute('id', 'cell-' + cellNumber);
+      cellMap[cellNumber] = cell;
+      row.appendChild(cell);
+      cellNumber++;
+    });
+    tbody.appendChild(row);
+  });
+
+  // マトリックス選択
+  function selectMatrix() {
+    const input = parseInt(document.getElementById('matrixInput').value);
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    if (cellMap[input]) {
+      cellMap[input].classList.add('selected');
+      document.getElementById('calcSection').style.display = 'block';
+    }
+  }
+
+  function startSimulation() {
+    const bond = parseFloat(document.getElementById('bondInput').value);
+    const stock = parseFloat(document.getElementById('stockInput').value);
+    const t = parseFloat(document.getElementById('tInput').value);
+    if (isNaN(bond) || isNaN(stock) || isNaN(t) || t === 0) {
+      alert('全ての数値を正しく入力してください（T≠0）');
+      return;
+    }
+
+    const baseO = (bond - stock) / t;
+    let step = 0, totalSteps = 30;
+
+    clearInterval(simInterval);
+    simInterval = setInterval(() => {
+      if (step >= totalSteps) {
+        clearInterval(simInterval);
+      } else {
+        const fluctuation = (Math.random() - 0.5) * 0.2;
+        const fluctuatedO = (baseO * (1 + fluctuation)).toFixed(2);
+        outputSpan.textContent = fluctuatedO;
+        finalO = fluctuatedO;
+        step++;
+      }
+    }, 100);
+  }
+
+  function stopSimulation() {
+    clearInterval(simInterval);
+    if (finalO !== null) {
+      // QRコード生成
+      const qrDiv = document.getElementById("qrcode");
+      qrDiv.innerHTML = ""; // 旧QR消去
+      new QRCode(qrDiv, {
+        text: finalO,
+        width: 128,
+        height: 128
+      });
+    }
+  }
+
+  function readQRCode() {
+    // QRコード読み取りの代替（ここでは最後のOを再出力）
+    if (finalO !== null) {
+      qrOutput.textContent = finalO;
+    } else {
+      qrOutput.textContent = "--";
+    }
+  }
+</script>
+
+</body>
+</html>
